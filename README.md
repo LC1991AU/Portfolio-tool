@@ -25,8 +25,20 @@ Keep private inputs under the ignored `data/` folder. Use the column headers in 
 
 Choose **Local portfolio** in the sidebar. Select a holding to trace its direct and ETF ownership paths. Unmapped positions, circular ETF paths and undisclosed fund weights appear under unresolved holdings. This version handles long-only snapshots and aggregates at the listing level. Prices, hedge overlays, issuer mapping across share classes, historical snapshots and live constituent feeds are future work.
 
-## Verify
+## ASX end-of-day market data
+
+The EODHD adapter loads daily OHLC, adjusted close, volume and observed GICS levels for explicitly selected ASX shares. It uses the Australian exchange suffix `.AU` and the dedicated `GicSector` field. Generic sector names never fill missing GICS classifications. See the [Australian coverage](https://eodhd.com/asx-data), [fundamentals](https://eodhd.com/financial-apis/stock-etfs-fundamental-data-feeds) and [price documentation](https://eodhd.com/financial-apis/api-for-historical-data-and-volumes).
+
+Set the environment variable `EODHD_API_TOKEN` privately to a token entitled to Australian EOD and fundamentals. From the VS Code PowerShell terminal, refresh the starter universe with:
 
 ```powershell
-.\.venv\Scripts\python -m unittest -v test_lookthrough
+& "$env:USERPROFILE\.venv\Scripts\python.exe" asx_market.py BHP CBA CSL
+```
+
+Use **Show ASX market data** in the dashboard sidebar. Each run reloads the trailing 365 calendar days and replaces revised prices by trading date; use `--from-date YYYY-MM-DD` for older history or historical adjustment revisions. Each ticker commits independently. A failed ticker leaves its prior data intact and returns a nonzero exit code. The sector date is the UTC observation date; historical classifications begin when you start collecting them. Portfolio look-through can join these records on exchange and ticker. The share feed does not supply ETF weights. Keep tokens and licensed data local and confirm client display and derived-data rights before hosting.
+
+## Run tests
+
+```powershell
+.\.venv\Scripts\python -m unittest discover -v
 ```

@@ -10,6 +10,23 @@ from lookthrough import exposure_paths, load_reference
 
 st.set_page_config(page_title="Portfolio exposures", layout="wide")
 st.title("Portfolio exposures")
+if st.sidebar.checkbox("Show ASX market data"):
+    st.subheader("ASX share prices and GICS sectors")
+    path = ROOT / "data" / "portfolio.db"
+    market = pd.DataFrame()
+    if path.exists():
+        with closing(sqlite3.connect(path.as_uri() + "?mode=ro", uri=True)) as db:
+            if db.execute("SELECT 1 FROM sqlite_master WHERE type='view' AND name='latest_asx_market_data'").fetchone():
+                market = pd.read_sql_query("""SELECT ticker AS Ticker, name AS Company, trade_date AS 'Price date',
+                    close AS Close, currency AS Currency, sector AS 'GICS sector',
+                    observed_date AS 'Sector checked', source AS Source
+                    FROM latest_asx_market_data ORDER BY ticker""", db)
+    if market.empty:
+        st.info("No ASX prices have been imported. Refresh selected tickers with asx_market.py.")
+    else:
+        market["GICS sector"] = market["GICS sector"].fillna("Unclassified")
+        st.dataframe(market, hide_index=True, width="stretch")
+    st.stop()
 mode = st.sidebar.radio("Portfolio", ["Illustrative example", "Local portfolio"])
 
 if mode == "Illustrative example":
