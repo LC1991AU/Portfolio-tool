@@ -75,6 +75,21 @@ CREATE TABLE IF NOT EXISTS asx_portfolio_holdings (
     weight_pct REAL NOT NULL CHECK (weight_pct > 0 AND weight_pct <= 100)
 );
 
+CREATE TABLE IF NOT EXISTS portfolios (
+    id INTEGER PRIMARY KEY,
+    name TEXT NOT NULL COLLATE NOCASE UNIQUE,
+    updated_utc TEXT NOT NULL,
+    legacy_source TEXT UNIQUE
+);
+
+CREATE TABLE IF NOT EXISTS portfolio_positions (
+    portfolio_id INTEGER NOT NULL REFERENCES portfolios ON DELETE CASCADE,
+    exchange TEXT NOT NULL,
+    ticker TEXT NOT NULL,
+    weight_pct REAL NOT NULL CHECK (weight_pct > 0 AND weight_pct <= 100),
+    PRIMARY KEY (portfolio_id, exchange, ticker)
+);
+
 CREATE TABLE IF NOT EXISTS security_master (
     exchange TEXT NOT NULL,
     ticker TEXT NOT NULL,

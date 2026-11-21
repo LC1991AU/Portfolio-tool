@@ -1,5 +1,7 @@
 import sqlite3
+import tempfile
 import unittest
+from pathlib import Path
 
 from streamlit.testing.v1 import AppTest
 
@@ -38,15 +40,19 @@ class ExposureTests(unittest.TestCase):
         self.assertAlmostEqual(sum(r["Weight"] for r in rows if r["Issue"]), 100)
 
     def test_dashboard(self):
-        app = AppTest.from_file(str(ROOT / "dashboard.py"), default_timeout=30)
-        app.session_state["dashboard_page"] = "ETF look-through"
-        app.run()
-        self.assertFalse(app.exception)
-        self.assertEqual([m.value for m in app.metric], ["53.80%", "46.20%", "100.00%"])
-        self.assertEqual(app.dataframe[0].value.loc["ASX:BHP", "Total"], 46)
-        app.selectbox[0].select("ASX:CBA").run()
-        self.assertFalse(app.exception)
-        self.assertEqual(app.dataframe[-1].value["Source path"].tolist(), ["ASX:VAS → ASX:CBA"])
+        with tempfile.TemporaryDirectory() as folder:
+            path = Path(folder) / "test.db"
+            script = (f"from pathlib import Path\nfrom portfolio_dashboard import show_dashboard\n"
+                      f"show_dashboard(Path({str(path)!r}))")
+            app = AppTest.from_string(script, default_timeout=30).run()
+            next(b for b in app.button if b.label == "Shares and ETF example").click().run()
+            app.radio[0].set_value("ETF look-through").run()
+            self.assertFalse(app.exception)
+            self.assertEqual([m.value for m in app.metric], ["53.80%", "46.20%", "100.00%"])
+            self.assertEqual(app.dataframe[0].value.loc["ASX:BHP", "Total"], 46)
+            app.selectbox[0].select("ASX:CBA").run()
+            self.assertFalse(app.exception)
+            self.assertEqual(app.dataframe[-1].value["Source path"].tolist(), ["ASX:VAS → ASX:CBA"])
 
 
 if __name__ == "__main__":

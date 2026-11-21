@@ -65,10 +65,11 @@ class PortfolioAnalysisTests(unittest.TestCase):
     def test_scenario_page_upload_select_and_save(self):
         with tempfile.TemporaryDirectory() as folder:
             path = Path(folder) / "test.db"
-            script = (f"from pathlib import Path\nfrom equity_dashboard import show_asx_portfolio\n"
-                      f"show_asx_portfolio(Path({str(path)!r}))")
+            script = (f"from pathlib import Path\nfrom portfolio_dashboard import show_dashboard\n"
+                      f"show_dashboard(Path({str(path)!r}))")
             app = AppTest.from_string(script).run()
-            app.radio(key="asx_analysis_view").set_value("Benchmark & scenarios").run()
+            next(b for b in app.button if b.label == "10-share ASX example").click().run()
+            app.radio[0].set_value("Benchmark & scenarios").run()
             self.assertFalse(app.exception)
             weights = next(table.value for table in app.dataframe if table.value.index.name == "Security")
             self.assertEqual(weights.loc["ASX:BHP", "Active weight (pp)"], 3)

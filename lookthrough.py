@@ -56,11 +56,15 @@ def load_reference(conn, instruments, constituents):
         conn.executemany("INSERT INTO constituents VALUES (?,?,?,?,?)", edges)
 
 
-def exposure_paths(conn):
-    kinds = {(x,t): k for x,t,k in conn.execute("SELECT exchange,ticker,kind FROM instruments")}
+def exposure_paths(conn, holdings=None, equity_listings=()):
+    tables = {row[0] for row in conn.execute("SELECT name FROM sqlite_master WHERE type='table'")}
+    kinds = dict.fromkeys(equity_listings, "EQUITY")
+    if "instruments" in tables:
+        kinds.update({(x, t): k for x, t, k in conn.execute("SELECT exchange,ticker,kind FROM instruments")})
     children = defaultdict(list)
-    for fx,ft,cx,ct,w in conn.execute("SELECT fund_exchange,fund_ticker,exchange,ticker,weight_pct FROM constituents"):
-        children[fx,ft].append(((cx,ct), w))
+    if "constituents" in tables:
+        for fx,ft,cx,ct,w in conn.execute("SELECT fund_exchange,fund_ticker,exchange,ticker,weight_pct FROM constituents"):
+            children[fx,ft].append(((cx,ct), w))
     rows = []
 
     def expand(key, allocation, ancestors):
@@ -86,8 +90,10 @@ def exposure_paths(conn):
                 allocation *= residual / 100
                 record(f"Unresolved · {listing}", "Incomplete constituent coverage")
 
-    for x,t,w in conn.execute("SELECT exchange,ticker,weight_pct FROM holdings ORDER BY exchange,ticker"):
-        expand((x,t), w, ())
+    if holdings is None:
+        holdings = conn.execute("SELECT ticker,exchange,weight_pct FROM holdings ORDER BY exchange,ticker")
+    for ticker, exchange, weight in holdings:
+        expand((exchange, ticker), weight, ())
     return rows
 
 

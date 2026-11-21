@@ -1,86 +1,11 @@
-"""Streamlit pages for building and analysing an ASX share portfolio."""
+"""Price refresh and overview for a selected ASX share portfolio."""
 
-import csv
-import io
 import sqlite3
-from contextlib import closing
 
-import pandas as pd
 import streamlit as st
 
-from analysis_dashboard import show_benchmark_analysis
 from asx_market import FeedUnavailable, api_token, refresh_prices
-from equity_portfolio import (
-    builder_securities, initialise_portfolio, performance, portfolio_csv, portfolio_overview,
-    sample_weights, save_portfolio, saved_weights, validate_portfolio,
-)
-from portfolio_analysis import direct_exposures
-
-
-def edit_portfolio(db, holdings):
-    upload, manual = st.tabs(["Upload CSV", "Enter weights"])
-    with upload:
-        st.caption("Use ticker, exchange and weight_pct columns. Enter 10 for a 10% weight.")
-        st.download_button("Download CSV template", portfolio_csv(), "asx_portfolio.csv", "text/csv")
-        uploaded = st.file_uploader("Portfolio CSV", type="csv")
-        if uploaded is not None:
-            try:
-                content = uploaded.getvalue().decode("utf-8-sig")
-                rows = validate_portfolio(db, io.StringIO(content))
-                st.dataframe(pd.DataFrame(rows, columns=["Ticker", "Exchange", "Weight (%)"]), hide_index=True)
-                if st.button("Save uploaded portfolio"):
-                    save_portfolio(db, io.StringIO(content))
-                    return True
-            except (ValueError, csv.Error, sqlite3.Error) as error:
-                st.error(str(error))
-
-    with manual:
-        st.caption("Search by ticker or company name, then enter weights that add up to 100%.")
-        current = {ticker: weight for ticker, _, weight in holdings}
-        securities = builder_securities(db)
-        snapshot = db.execute("""
-            SELECT s.observed_date,s.coverage,COUNT(m.ticker)
-            FROM index_universe_snapshot s JOIN index_universe_members m USING(index_code)
-            WHERE s.index_code='XAO' GROUP BY s.index_code,s.observed_date,s.coverage
-        """).fetchone()
-        index_only = False
-        if snapshot:
-            observed, coverage, count = snapshot
-            st.caption(f"{len(securities):,} ASX listings searchable. All Ordinaries has {count} listings in the "
-                       f"{'published' if coverage == 'complete' else 'partial'} snapshot checked {observed}.")
-            index_only = st.checkbox("Filter to All Ordinaries", value=coverage == "complete")
-        selected = st.multiselect(
-            "Find ASX shares",
-            [ticker for ticker, (_, _, reported) in securities.items()
-             if not index_only or reported or ticker in current],
-            default=list(current),
-            format_func=lambda ticker: f"{ticker} | {securities[ticker][0]}",
-        )
-        editable = pd.DataFrame(
-            [(ticker, securities[ticker][0], securities[ticker][1] or "Unclassified", current.get(ticker, 0.0))
-             for ticker in selected],
-            columns=["Ticker", "Company", "GICS sector", "Weight (%)"],
-        )
-        with st.form("manual_weights"):
-            edited = st.data_editor(
-                editable, hide_index=True, disabled=["Ticker", "Company", "GICS sector"],
-                column_config={"Weight (%)": st.column_config.NumberColumn(min_value=0, max_value=100, required=True)},
-            )
-            submitted = st.form_submit_button("Save entered weights")
-        if submitted:
-            content = io.StringIO()
-            writer = csv.writer(content)
-            writer.writerow(["ticker", "exchange", "weight_pct"])
-            writer.writerows((ticker, "ASX", weight)
-                             for ticker, weight in edited[["Ticker", "Weight (%)"]].itertuples(index=False, name=None)
-                             if weight != 0)
-            content.seek(0)
-            try:
-                save_portfolio(db, content)
-                return True
-            except (ValueError, csv.Error, sqlite3.Error) as error:
-                st.error(str(error))
-    return False
+from equity_portfolio import performance, portfolio_overview
 
 
 def refresh_market(db, holdings, token):
@@ -103,37 +28,14 @@ def refresh_market(db, holdings, token):
         st.warning(failure)
 
 
-def show_asx_portfolio(path):
-    path.parent.mkdir(parents=True, exist_ok=True)
-    with closing(sqlite3.connect(path)) as db:
-        initialise_portfolio(db)
-        saved = saved_weights(db)
-        label = "10-share example"
-        if st.session_state.pop("portfolio_saved", False):
-            st.session_state["asx_view"] = "Saved portfolio"
-            st.success("Portfolio saved.")
-        if saved:
-            label = st.radio("Portfolio", ["Saved portfolio", "10-share example"], horizontal=True, key="asx_view")
-        else:
-            st.caption("10-share example · 10% per stock")
-
-        with st.expander("Upload or edit a portfolio"):
-            if edit_portfolio(db, saved or sample_weights()):
-                st.session_state["portfolio_saved"] = True
-                st.rerun()
-
-        holdings = saved if label == "Saved portfolio" else sample_weights()
-        view = st.radio("ASX view", ["Overview", "Benchmark & scenarios"], horizontal=True, key="asx_analysis_view")
-        if view == "Benchmark & scenarios":
-            show_benchmark_analysis(db, label, direct_exposures(holdings))
-            return
-        token = api_token()
-        if st.button("Refresh daily prices", type="primary", disabled=not token):
-            refresh_market(db, holdings, token)
-        if not token:
-            st.info("Set EODHD_API_TOKEN on this computer to enable price refresh.")
-        positions = portfolio_overview(db, holdings)
-        curve, daily = performance(db, holdings)
+def show_asx_overview(db, holdings):
+    token = api_token()
+    if st.button("Refresh daily prices", disabled=not token):
+        refresh_market(db, holdings, token)
+    if not token:
+        st.caption("Set EODHD_API_TOKEN to enable price refresh.")
+    positions = portfolio_overview(db, holdings)
+    curve, daily = performance(db, holdings)
 
     priced = positions.loc[positions["close"].notna(), "Weight (%)"].sum()
     left, middle, right = st.columns(3)

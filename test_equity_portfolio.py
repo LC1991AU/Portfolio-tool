@@ -49,21 +49,24 @@ class EquityPortfolioTests(unittest.TestCase):
     def test_dashboard_refresh_and_save(self):
         with tempfile.TemporaryDirectory() as folder:
             path = Path(folder) / "test.db"
-            script = f"from pathlib import Path\nfrom equity_dashboard import show_asx_portfolio\nshow_asx_portfolio(Path({str(path)!r}))"
+            script = f"from pathlib import Path\nfrom portfolio_dashboard import show_dashboard\nshow_dashboard(Path({str(path)!r}))"
             bars = [bar("2026-01-02", 10), bar("2026-01-05", 11)]
             with patch("equity_dashboard.api_token", return_value="test-token"), patch("asx_market.get_json", return_value=bars) as get:
                 app = AppTest.from_string(script).run()
                 self.assertFalse(app.exception)
+                self.assertEqual(len(app.metric), 0)
+                next(b for b in app.button if b.label == "10-share ASX example").click().run()
                 next(b for b in app.button if b.label == "Refresh daily prices").click().run()
                 self.assertFalse(app.exception)
                 self.assertEqual(get.call_count, 10)
                 self.assertEqual([m.value for m in app.metric], ["10", "100.0%", "+10.00%"])
-                next(b for b in app.button if b.label == "Save entered weights").click().run()
-                self.assertFalse(app.exception)
-                self.assertEqual(app.radio[0].value, "Saved portfolio")
+                next(b for b in app.button if b.label == "All portfolios").click().run()
+                next(b for b in app.button if b.label == "Upload CSV").click().run()
                 csv_file = io.BytesIO(b"ticker,exchange,weight_pct\nBHP,ASX,60\nCBA,ASX,40\n")
-                with patch("equity_dashboard.st.file_uploader", return_value=csv_file):
+                with patch("portfolio_builder.st.file_uploader", return_value=csv_file):
+                    app.text_input[0].set_value("Uploaded portfolio")
                     app.run()
-                    next(b for b in app.button if b.label == "Save uploaded portfolio").click().run()
+                    next(b for b in app.button if b.label == "Save and open portfolio").click().run()
                 self.assertFalse(app.exception)
                 self.assertEqual(app.metric[0].value, "2")
+                self.assertEqual(app.title[0].value, "Uploaded portfolio")
