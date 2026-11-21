@@ -30,13 +30,13 @@ def sample_weights():
     return [(row["ticker"], "ASX", 100 / len(reference)) for row in reference]
 
 
-def validate_portfolio(stream):
+def validate_portfolio(db, stream):
     rows = parse_holdings(stream)
-    supported = {row["ticker"] for row in sample_reference()}
+    supported = {row[0] for row in db.execute("SELECT ticker FROM asx_builder_securities")}
     invalid = [f"{exchange}:{ticker}" for ticker, exchange, _ in rows
                if exchange != "ASX" or ticker not in supported]
     if invalid:
-        raise ValueError(f"Select shares from the 10-stock universe. Unsupported listings: {', '.join(invalid)}.")
+        raise ValueError(f"These listings are outside the ASX company catalog: {', '.join(invalid)}.")
     return rows
 
 
@@ -49,7 +49,7 @@ def portfolio_csv():
 
 
 def save_portfolio(db, stream):
-    rows = validate_portfolio(stream)
+    rows = validate_portfolio(db, stream)
     with db:
         db.execute("DELETE FROM asx_portfolio_holdings")
         db.executemany("INSERT INTO asx_portfolio_holdings VALUES (?,?)",
@@ -60,13 +60,19 @@ def saved_weights(db):
     return db.execute("SELECT ticker, 'ASX', weight_pct FROM asx_portfolio_holdings ORDER BY ticker").fetchall()
 
 
+def builder_securities(db):
+    return {ticker: (company, sector, bool(reported)) for ticker, company, sector, reported in db.execute(
+        "SELECT ticker,company,sector,reported_xao FROM asx_builder_securities ORDER BY ticker"
+    )}
+
+
 def portfolio_overview(db, holdings):
     reference = pd.read_sql_query("""
-        SELECT r.ticker AS Ticker, r.company AS Company, COALESCE(m.sector,r.sector) AS Sector,
-               CASE WHEN m.sector IS NULL THEN r.source_url END AS sector_url,
+        SELECT r.ticker AS Ticker, r.company AS Company, COALESCE(m.sector,r.sector,'Unclassified') AS Sector,
+               CASE WHEN m.sector IS NULL AND r.sector IS NOT NULL THEN r.source_url END AS sector_url,
                m.trade_date AS price_date, m.close AS close, d.daily_return AS daily_return,
                m.currency AS currency, m.source AS price_source
-        FROM asx_sector_reference r
+        FROM asx_builder_securities r
         LEFT JOIN latest_asx_market_data m ON r.ticker=m.ticker
         LEFT JOIN asx_daily_returns d ON (m.ticker,m.trade_date)=(d.ticker,d.trade_date)
     """, db)

@@ -1,4 +1,4 @@
-"""Streamlit pages for the 10-share ASX portfolio."""
+"""Streamlit pages for building and analysing an ASX share portfolio."""
 
 import csv
 import io
@@ -10,8 +10,8 @@ import streamlit as st
 
 from asx_market import FeedUnavailable, api_token, refresh_prices
 from equity_portfolio import (
-    initialise_portfolio, performance, portfolio_csv, portfolio_overview,
-    sample_reference, sample_weights, save_portfolio, saved_weights, validate_portfolio,
+    builder_securities, initialise_portfolio, performance, portfolio_csv, portfolio_overview,
+    sample_weights, save_portfolio, saved_weights, validate_portfolio,
 )
 
 
@@ -24,7 +24,7 @@ def edit_portfolio(db, holdings):
         if uploaded is not None:
             try:
                 content = uploaded.getvalue().decode("utf-8-sig")
-                rows = validate_portfolio(io.StringIO(content))
+                rows = validate_portfolio(db, io.StringIO(content))
                 st.dataframe(pd.DataFrame(rows, columns=["Ticker", "Exchange", "Weight (%)"]), hide_index=True)
                 if st.button("Save uploaded portfolio"):
                     save_portfolio(db, io.StringIO(content))
@@ -33,15 +33,35 @@ def edit_portfolio(db, holdings):
                 st.error(str(error))
 
     with manual:
-        st.caption("Set unused shares to zero. Positive weights must add up to 100%.")
+        st.caption("Search by ticker or company name, then enter weights that add up to 100%.")
         current = {ticker: weight for ticker, _, weight in holdings}
+        securities = builder_securities(db)
+        snapshot = db.execute("""
+            SELECT s.observed_date,s.coverage,COUNT(m.ticker)
+            FROM index_universe_snapshot s JOIN index_universe_members m USING(index_code)
+            WHERE s.index_code='XAO' GROUP BY s.index_code,s.observed_date,s.coverage
+        """).fetchone()
+        index_only = False
+        if snapshot:
+            observed, coverage, count = snapshot
+            st.caption(f"{len(securities):,} ASX listings searchable. All Ordinaries has {count} listings in the "
+                       f"{'published' if coverage == 'complete' else 'partial'} snapshot checked {observed}.")
+            index_only = st.checkbox("Filter to All Ordinaries", value=coverage == "complete")
+        selected = st.multiselect(
+            "Find ASX shares",
+            [ticker for ticker, (_, _, reported) in securities.items()
+             if not index_only or reported or ticker in current],
+            default=list(current),
+            format_func=lambda ticker: f"{ticker} | {securities[ticker][0]}",
+        )
         editable = pd.DataFrame(
-            [(row["ticker"], current.get(row["ticker"], 0.0)) for row in sample_reference()],
-            columns=["Ticker", "Weight (%)"],
+            [(ticker, securities[ticker][0], securities[ticker][1] or "Unclassified", current.get(ticker, 0.0))
+             for ticker in selected],
+            columns=["Ticker", "Company", "GICS sector", "Weight (%)"],
         )
         with st.form("manual_weights"):
             edited = st.data_editor(
-                editable, hide_index=True, disabled=["Ticker"],
+                editable, hide_index=True, disabled=["Ticker", "Company", "GICS sector"],
                 column_config={"Weight (%)": st.column_config.NumberColumn(min_value=0, max_value=100, required=True)},
             )
             submitted = st.form_submit_button("Save entered weights")
@@ -49,7 +69,8 @@ def edit_portfolio(db, holdings):
             content = io.StringIO()
             writer = csv.writer(content)
             writer.writerow(["ticker", "exchange", "weight_pct"])
-            writer.writerows((ticker, "ASX", weight) for ticker, weight in edited.itertuples(index=False, name=None)
+            writer.writerows((ticker, "ASX", weight)
+                             for ticker, weight in edited[["Ticker", "Weight (%)"]].itertuples(index=False, name=None)
                              if weight != 0)
             content.seek(0)
             try:
@@ -140,10 +161,10 @@ def show_asx_portfolio(path):
                 "Weight (%)": st.column_config.NumberColumn(format="%.2f%%"),
                 "Close": st.column_config.NumberColumn(format="$%.2f"),
                 "Daily return (%)": st.column_config.NumberColumn(format="%.2f%%"),
-                "Sector source": st.column_config.LinkColumn(display_text="Market Index"),
+                "Sector source": st.column_config.LinkColumn(display_text="Reference"),
             },
         )
-        st.caption("Closing prices in AUD. A blank sector link means an EODHD GICS observation was available.")
+        st.caption("Closing prices in AUD. Sector sources include the ASX directory and EODHD where available.")
 
     if not daily.empty:
         with st.expander("Daily stock returns"):

@@ -105,7 +105,7 @@ def refresh_prices(db, ticker, token, start=None):
     now = datetime.now(timezone.utc)
     start = start or now.date() - timedelta(days=365)
     bars = get_json(f"eod/{ticker}.AU", token, **{"from": start.isoformat(), "period": "d"})
-    ref = db.execute("SELECT company FROM asx_sector_reference WHERE ticker=?", (ticker,)).fetchone()
+    ref = db.execute("SELECT company FROM asx_builder_securities WHERE ticker=?", (ticker,)).fetchone()
     save_prices(db, ticker, bars, now, name=ref[0] if ref else None)
     return len(bars)
 

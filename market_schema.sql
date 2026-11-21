@@ -74,3 +74,40 @@ CREATE TABLE IF NOT EXISTS asx_portfolio_holdings (
     ticker TEXT PRIMARY KEY NOT NULL,
     weight_pct REAL NOT NULL CHECK (weight_pct > 0 AND weight_pct <= 100)
 );
+
+CREATE TABLE IF NOT EXISTS security_master (
+    exchange TEXT NOT NULL,
+    ticker TEXT NOT NULL,
+    company TEXT NOT NULL,
+    gics_industry_group TEXT,
+    gics_sector TEXT,
+    source_url TEXT NOT NULL,
+    observed_date TEXT NOT NULL,
+    PRIMARY KEY (exchange, ticker)
+);
+
+CREATE TABLE IF NOT EXISTS index_universe_snapshot (
+    index_code TEXT PRIMARY KEY NOT NULL,
+    observed_date TEXT NOT NULL,
+    source_url TEXT NOT NULL,
+    coverage TEXT NOT NULL CHECK (coverage IN ('partial', 'complete'))
+);
+
+CREATE TABLE IF NOT EXISTS index_universe_members (
+    index_code TEXT NOT NULL REFERENCES index_universe_snapshot,
+    exchange TEXT NOT NULL,
+    ticker TEXT NOT NULL,
+    PRIMARY KEY (index_code, exchange, ticker),
+    FOREIGN KEY (exchange, ticker) REFERENCES security_master (exchange, ticker)
+);
+
+CREATE VIEW IF NOT EXISTS asx_builder_securities AS
+SELECT s.ticker, s.company, s.gics_sector AS sector, s.source_url,
+       x.ticker IS NOT NULL AS reported_xao
+FROM security_master s
+LEFT JOIN index_universe_members x ON (x.exchange,x.ticker)=(s.exchange,s.ticker) AND x.index_code='XAO'
+WHERE s.exchange='ASX'
+UNION ALL
+SELECT t.ticker, t.company, t.sector, t.source_url, 0
+FROM asx_sector_reference t
+WHERE NOT EXISTS (SELECT 1 FROM security_master s WHERE s.exchange='ASX' AND s.ticker=t.ticker);

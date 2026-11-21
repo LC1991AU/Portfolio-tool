@@ -4,9 +4,19 @@
 
 The dashboard opens with ten equal-weight ASX shares. Select **Refresh daily prices** to download up to one year of prices from EODHD. With ten holdings, the button makes ten standard EOD calls. It reads `EODHD_API_TOKEN` from the local environment or the Windows user environment settings. The dashboard uses EODHD adjusted closes to calculate daily returns. Growth of $100 models daily rebalancing to the entered weights over the most recent uninterrupted set of sessions priced for all holdings.
 
-Open **Upload or edit a portfolio** to upload a CSV or enter weights in the browser. The downloadable CSV gives the exact column format and ten supported listings. Enter positive weights that total 100%. The manual editor accepts zero for unused positions. Saving stores one custom ASX portfolio locally and leaves the example available for comparison.
+Open **Upload or edit a portfolio** to upload a CSV or enter weights in the browser. Search the ASX catalog by ticker or company name, choose the shares, then enter weights that total 100%. The downloadable CSV uses the ten-share example to show the column format. Saving stores one custom ASX portfolio locally. Shares can be saved and included in sector weights before their prices are available.
 
-The ten sector classifications are sourced from [Market Index's GICS sector listings](https://www.marketindex.com.au/asx-sectors). Existing nonempty EODHD GICS values take precedence. The sample sectors are reference data and price refresh makes no fundamentals calls. The database stores the sector reference, the saved ASX snapshot and a daily returns view alongside the existing market data.
+### All Ordinaries security catalog
+
+Populate or update the local catalog from the [ASX company directory](https://www.asx.com.au/asx/research/ASXListedCompanies.csv) and [FNArena's published All Ordinaries list](https://fnarena.com/index/ALL-ORDS/):
+
+```powershell
+& "$env:USERPROFILE\.venv\Scripts\python.exe" asx_catalog.py --all-ordinaries
+```
+
+The security master stores the ASX code, company, GICS industry group, parent sector, source and observation date. Index membership is a separate dated snapshot. In the builder, **Filter to All Ordinaries** narrows the security picker to that list and retains any positions you already hold for editing. ASX directory issuers with classification pending appear as Unclassified. The catalog and index import use no EODHD price calls. The ten-share example is also available on an empty local database.
+
+The sample sector classifications use [Market Index's GICS sector listings](https://www.marketindex.com.au/asx-sectors) before the ASX catalog is loaded. Existing nonempty EODHD GICS values take precedence in the portfolio overview. Price refresh makes no fundamentals calls.
 
 Use **ETF look-through** in the sidebar for the ETF exposure workflow below.
 
