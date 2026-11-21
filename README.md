@@ -20,6 +20,12 @@ The sample sector classifications use [Market Index's GICS sector listings](http
 
 Use **ETF look-through** in the sidebar for the ETF exposure workflow below.
 
+## Benchmark comparison and scenarios
+
+Select **Benchmark & scenarios** in the ASX portfolio view or **Compare benchmark and run scenarios** below the ETF look-through. The built-in ASX benchmark uses illustrative weights. Upload a dated ASX benchmark CSV with the same `ticker,exchange,weight_pct` layout used for portfolios. The active weight is the portfolio percentage minus the benchmark percentage, in percentage points. Both tables include benchmark-only positions. The comparison retains any unresolved portfolio weight.
+
+Apply a one-off security, sector or broad equity shock. The app compares both portfolios at the same starting AUD value and traces each affected position. Cash has zero impact. A sector shock leaves unclassified holdings outside its coverage, and all shocks leave unresolved holdings outside coverage. Save the run to store the weights by ownership path, assumptions, results and coverage in SQLite. This analysis uses holdings percentages without requiring a price refresh.
+
 A local Streamlit dashboard for tracing a portfolio through ETF constituents. It combines direct and indirect holdings by exchange and ticker. All bundled weights are illustrative. The example deliberately contains only part of the VAS portfolio.
 
 ## Run the dashboard

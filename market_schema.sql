@@ -111,3 +111,35 @@ UNION ALL
 SELECT t.ticker, t.company, t.sector, t.source_url, 0
 FROM asx_sector_reference t
 WHERE NOT EXISTS (SELECT 1 FROM security_master s WHERE s.exchange='ASX' AND s.ticker=t.ticker);
+
+CREATE TABLE IF NOT EXISTS benchmark_snapshots (
+    id INTEGER PRIMARY KEY,
+    name TEXT NOT NULL,
+    effective_date TEXT NOT NULL,
+    imported_utc TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS benchmark_weights (
+    snapshot_id INTEGER NOT NULL REFERENCES benchmark_snapshots,
+    exchange TEXT NOT NULL,
+    ticker TEXT NOT NULL,
+    weight_pct REAL NOT NULL CHECK (weight_pct > 0 AND weight_pct <= 100),
+    PRIMARY KEY (snapshot_id, exchange, ticker)
+);
+
+CREATE TABLE IF NOT EXISTS stress_runs (
+    id INTEGER PRIMARY KEY,
+    created_utc TEXT NOT NULL,
+    portfolio_name TEXT NOT NULL,
+    benchmark_name TEXT NOT NULL,
+    benchmark_date TEXT,
+    shock_scope TEXT NOT NULL,
+    shock_target TEXT NOT NULL,
+    shock_pct REAL NOT NULL,
+    portfolio_value_aud REAL NOT NULL CHECK (portfolio_value_aud > 0),
+    portfolio_return_pct REAL NOT NULL,
+    benchmark_return_pct REAL NOT NULL,
+    portfolio_coverage_pct REAL NOT NULL,
+    benchmark_coverage_pct REAL NOT NULL,
+    result_json TEXT NOT NULL
+);

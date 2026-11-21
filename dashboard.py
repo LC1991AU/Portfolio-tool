@@ -4,7 +4,9 @@ from contextlib import closing
 import pandas as pd
 import streamlit as st
 
+from analysis_dashboard import show_benchmark_analysis
 from equity_dashboard import show_asx_portfolio
+from equity_portfolio import initialise_portfolio
 from load_holdings import ROOT, read_holdings
 from lookthrough import exposure_paths, load_reference
 
@@ -87,3 +89,10 @@ st.subheader("Trace an exposure")
 choice = st.selectbox("Underlying holding", summary.index.tolist() + sorted(unknown["Exposure"].unique()))
 st.dataframe(paths.loc[paths["Exposure"] == choice, ["Source path", "Route", "Weight"]],
              hide_index=True, column_config={"Weight": percent}, width="stretch")
+
+if st.checkbox("Compare benchmark and run scenarios"):
+    path = ROOT / "data" / "portfolio.db"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with closing(sqlite3.connect(path)) as analysis_db:
+        initialise_portfolio(analysis_db)
+        show_benchmark_analysis(analysis_db, f"ETF look-through · {mode}", paths.to_dict("records"))

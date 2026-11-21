@@ -8,11 +8,13 @@ from contextlib import closing
 import pandas as pd
 import streamlit as st
 
+from analysis_dashboard import show_benchmark_analysis
 from asx_market import FeedUnavailable, api_token, refresh_prices
 from equity_portfolio import (
     builder_securities, initialise_portfolio, performance, portfolio_csv, portfolio_overview,
     sample_weights, save_portfolio, saved_weights, validate_portfolio,
 )
+from portfolio_analysis import direct_exposures
 
 
 def edit_portfolio(db, holdings):
@@ -121,6 +123,10 @@ def show_asx_portfolio(path):
                 st.rerun()
 
         holdings = saved if label == "Saved portfolio" else sample_weights()
+        view = st.radio("ASX view", ["Overview", "Benchmark & scenarios"], horizontal=True, key="asx_analysis_view")
+        if view == "Benchmark & scenarios":
+            show_benchmark_analysis(db, label, direct_exposures(holdings))
+            return
         token = api_token()
         if st.button("Refresh daily prices", type="primary", disabled=not token):
             refresh_market(db, holdings, token)

@@ -69,7 +69,7 @@ def exposure_paths(conn):
         def record(name, reason=""):
             rows.append({"Exposure": name, "Source path": " → ".join(":".join(k) for k in path),
                          "Route": "Via ETF" if ancestors or kinds.get(key) == "ETF" else "Direct",
-                         "Weight": allocation, "Issue": reason})
+                         "Weight": allocation, "Issue": reason, "Kind": kinds.get(key) if not reason else None})
 
         if key in ancestors:
             record(f"Unresolved · {listing}", "Circular ETF holding")
