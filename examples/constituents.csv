@@ -1,0 +1,4 @@
+fund_exchange,fund_ticker,exchange,ticker,weight_pct
+ASX,VAS,ASX,BHP,10
+ASX,VAS,ASX,CBA,8
+ASX,VAS,ASX,CSL,5
