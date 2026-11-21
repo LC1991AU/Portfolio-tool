@@ -1,5 +1,15 @@
 # Portfolio tool
 
+## ASX portfolio
+
+The dashboard opens with ten equal-weight ASX shares. Select **Refresh daily prices** to download up to one year of prices from EODHD. With ten holdings, the button makes ten standard EOD calls. It reads `EODHD_API_TOKEN` from the local environment or the Windows user environment settings. The dashboard uses EODHD adjusted closes to calculate daily returns. Growth of $100 models daily rebalancing to the entered weights over the most recent uninterrupted set of sessions priced for all holdings.
+
+Open **Upload or edit a portfolio** to upload a CSV or enter weights in the browser. The downloadable CSV gives the exact column format and ten supported listings. Enter positive weights that total 100%. The manual editor accepts zero for unused positions. Saving stores one custom ASX portfolio locally and leaves the example available for comparison.
+
+The ten sector classifications are sourced from [Market Index's GICS sector listings](https://www.marketindex.com.au/asx-sectors). Existing nonempty EODHD GICS values take precedence. The sample sectors are reference data and price refresh makes no fundamentals calls. The database stores the sector reference, the saved ASX snapshot and a daily returns view alongside the existing market data.
+
+Use **ETF look-through** in the sidebar for the ETF exposure workflow below.
+
 A local Streamlit dashboard for tracing a portfolio through ETF constituents. It combines direct and indirect holdings by exchange and ticker. All bundled weights are illustrative. The example deliberately contains only part of the VAS portfolio.
 
 ## Run the dashboard

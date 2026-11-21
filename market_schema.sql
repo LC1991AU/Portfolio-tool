@@ -49,3 +49,28 @@ LEFT JOIN gics_observations g ON (g.exchange,g.ticker) = (l.exchange,l.ticker)
     AND g.observed_date = (SELECT MAX(observed_date) FROM gics_observations
                            WHERE exchange=l.exchange AND ticker=l.ticker)
 WHERE l.exchange='ASX';
+
+CREATE VIEW IF NOT EXISTS asx_daily_returns AS
+WITH sessions AS (
+    SELECT trade_date, LAG(trade_date) OVER (ORDER BY trade_date) AS previous_date
+    FROM (SELECT DISTINCT trade_date FROM daily_prices WHERE exchange='ASX')
+)
+SELECT p.ticker, p.trade_date, s.previous_date, p.adjusted_close,
+       p.adjusted_close / prior.adjusted_close - 1.0 AS daily_return
+FROM daily_prices p
+JOIN sessions s ON p.trade_date = s.trade_date
+LEFT JOIN daily_prices prior ON (prior.exchange, prior.ticker, prior.trade_date) =
+                                (p.exchange, p.ticker, s.previous_date)
+WHERE p.exchange='ASX';
+
+CREATE TABLE IF NOT EXISTS asx_sector_reference (
+    ticker TEXT PRIMARY KEY NOT NULL,
+    company TEXT NOT NULL,
+    sector TEXT NOT NULL,
+    source_url TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS asx_portfolio_holdings (
+    ticker TEXT PRIMARY KEY NOT NULL,
+    weight_pct REAL NOT NULL CHECK (weight_pct > 0 AND weight_pct <= 100)
+);

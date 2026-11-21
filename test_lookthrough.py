@@ -38,7 +38,9 @@ class ExposureTests(unittest.TestCase):
         self.assertAlmostEqual(sum(r["Weight"] for r in rows if r["Issue"]), 100)
 
     def test_dashboard(self):
-        app = AppTest.from_file(str(ROOT / "dashboard.py")).run(timeout=30)
+        app = AppTest.from_file(str(ROOT / "dashboard.py"), default_timeout=30)
+        app.session_state["dashboard_page"] = "ETF look-through"
+        app.run()
         self.assertFalse(app.exception)
         self.assertEqual([m.value for m in app.metric], ["53.80%", "46.20%", "100.00%"])
         self.assertEqual(app.dataframe[0].value.loc["ASX:BHP", "Total"], 46)

@@ -4,11 +4,18 @@ from contextlib import closing
 import pandas as pd
 import streamlit as st
 
+from equity_dashboard import show_asx_portfolio
 from load_holdings import ROOT, read_holdings
 from lookthrough import exposure_paths, load_reference
 
 
-st.set_page_config(page_title="Portfolio exposures", layout="wide")
+st.set_page_config(page_title="Portfolio analytics", layout="wide")
+page = st.sidebar.radio("Dashboard", ["ASX portfolio", "ETF look-through"], key="dashboard_page")
+if page == "ASX portfolio":
+    st.title("ASX portfolio")
+    show_asx_portfolio(ROOT / "data" / "portfolio.db")
+    st.stop()
+
 st.title("Portfolio exposures")
 if st.sidebar.checkbox("Show ASX market data"):
     st.subheader("ASX share prices and GICS sectors")

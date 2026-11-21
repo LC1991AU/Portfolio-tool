@@ -12,24 +12,28 @@ ROOT = Path(__file__).resolve().parent
 
 
 def read_holdings(path):
-    positions = {}
     with path.open(encoding="utf-8-sig", newline="") as source:
-        reader = csv.DictReader(source)
-        if reader.fieldnames != ["ticker", "exchange", "weight_pct"]:
-            raise ValueError("Expected CSV header: ticker,exchange,weight_pct")
-        for row in reader:
-            if None in row or any(not value or not value.strip() for value in row.values()):
-                raise ValueError(f"Line {reader.line_num}: expected three populated fields")
-            key = (row["ticker"].strip().upper(), row["exchange"].strip().upper())
-            if key in positions:
-                raise ValueError(f"Line {reader.line_num}: duplicate listing {key}")
-            try:
-                weight = float(row["weight_pct"])
-            except ValueError:
-                raise ValueError(f"Line {reader.line_num}: invalid weight") from None
-            if not 0 < weight <= 100:
-                raise ValueError(f"Line {reader.line_num}: weight must be above 0 and at most 100")
-            positions[key] = weight
+        return parse_holdings(source)
+
+
+def parse_holdings(source):
+    positions = {}
+    reader = csv.DictReader(source)
+    if reader.fieldnames != ["ticker", "exchange", "weight_pct"]:
+        raise ValueError("Expected CSV header: ticker,exchange,weight_pct")
+    for row in reader:
+        if None in row or any(not value or not value.strip() for value in row.values()):
+            raise ValueError(f"Line {reader.line_num}: expected three populated fields")
+        key = (row["ticker"].strip().upper(), row["exchange"].strip().upper())
+        if key in positions:
+            raise ValueError(f"Line {reader.line_num}: duplicate listing {key}")
+        try:
+            weight = float(row["weight_pct"])
+        except ValueError:
+            raise ValueError(f"Line {reader.line_num}: invalid weight") from None
+        if not 0 < weight <= 100:
+            raise ValueError(f"Line {reader.line_num}: weight must be above 0 and at most 100")
+        positions[key] = weight
     total = math.fsum(positions.values())
     if not math.isclose(total, 100, abs_tol=0.01):
         raise ValueError(f"Weights total {total:.4f}%, expected 100% within 0.01 percentage points")

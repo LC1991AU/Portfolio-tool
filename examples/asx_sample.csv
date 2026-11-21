@@ -1,0 +1,11 @@
+ticker,company,sector,sector_slug
+BHP,BHP Group,Materials,materials
+BXB,Brambles,Industrials,industrials
+CBA,Commonwealth Bank of Australia,Financials,financials
+CSL,CSL,Health Care,health-care
+GMG,Goodman Group,Real Estate,real-estate
+TCL,Transurban Group,Industrials,industrials
+TLS,Telstra Group,Communication Services,communication-services
+WDS,Woodside Energy Group,Energy,energy
+WES,Wesfarmers,Consumer Discretionary,consumer-discretionary
+WOW,Woolworths Group,Consumer Staples,consumer-staples
